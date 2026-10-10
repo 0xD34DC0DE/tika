@@ -290,6 +290,19 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>io.github.zju-aces-ise</groupId>
+        <artifactId>chatunitest-maven-plugin</artifactId>
+        <version>2.1.1</version>
+        <configuration>
+          <!-- Dummy token required by client validation -->
+          <apiKeys>local-token</apiKeys>
+          <model>code-llama</model>
+          <url>http://localhost:11434/v1/chat/completions</url>
+          <!-- Combines generated test methods into one test file per class -->
+          <merge>true</merge>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
   <reporting>
