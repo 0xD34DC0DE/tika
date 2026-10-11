@@ -146,65 +146,43 @@
 
   <build>
     <plugins>
+      <!-- Start: PiTest plugin configs -->
       <plugin>
         <groupId>org.pitest</groupId>
         <artifactId>pitest-maven</artifactId>
         <version>1.15.2</version>
         <configuration>
+            <!-- Only target a single class to reduce execution time -->
             <targetClasses>
                 <param>org.apache.tika.sax.SafeContentHandler</param>
             </targetClasses>
+            <!-- Glob pattern for the tests we want to target with PiTest -->
             <targetTests>
                 <param>org.apache.tika.sax.*Test</param>
             </targetTests>
+            <!-- Increase memory and enable dynamic agent loading because Java 21 needs it -->
             <jvmArgs>
                 <param>-Xmx2048m</param>
                 <param>-XX:+EnableDynamicAgentLoading</param>
             </jvmArgs>
         </configuration>
         <dependencies>
+            <!-- PiTest plugin to support JUnit 5 tests -->
             <dependency>
                 <groupId>org.pitest</groupId>
                 <artifactId>pitest-junit5-plugin</artifactId>
                 <version>1.2.1</version>
             </dependency>
+            <!-- Specify the JUnit platform version to avoid crash caused by incompatible version when resolved
+                 automatically -->
             <dependency>
                 <groupId>org.junit.platform</groupId>
                 <artifactId>junit-platform-launcher</artifactId>
                 <version>6.1.3</version>
             </dependency>
         </dependencies>
-    </plugin>
-      <plugin>
-        <groupId>org.pitest</groupId>
-        <artifactId>pitest-maven</artifactId>
-        <version>1.15.2</version>
-        <configuration>
-            <targetClasses>
-                <param>org.apache.tika.sax.SafeContentHandler</param>
-            </targetClasses>
-            <targetTests>
-                <param>org.apache.tika.sax.*Test</param>
-            </targetTests>
-            <jvmArgs>
-                <param>-Xmx2048m</param>
-                <param>-XX:+EnableDynamicAgentLoading</param>
-            </jvmArgs>
-        </configuration>
-        <dependencies>
-            <dependency>
-                <groupId>org.pitest</groupId>
-                <artifactId>pitest-junit5-plugin</artifactId>
-                <version>1.2.1</version>
-            </dependency>
-            <!-- Ajout pour forcer la bonne version de JUnit -->
-            <dependency>
-                <groupId>org.junit.platform</groupId>
-                <artifactId>junit-platform-launcher</artifactId>
-                <version>6.1.3</version>
-            </dependency>
-        </dependencies>
-    </plugin>
+      </plugin>
+      <!-- End: PiTest plugin configs -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
