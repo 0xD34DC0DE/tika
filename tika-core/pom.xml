@@ -119,6 +119,29 @@
       <artifactId>junit-jupiter-engine</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Start: ChatUniTest testing dependencies (because the prompts reference these libraries to the LLM.
+     The dependencies come from the example pom file from the ChatUniTest documentation
+     (+help from an LLM to get everything working):
+     https://github.com/ZJU-ACES-ISE/ChatUniTest/blob/06d164aed21ec4cea29b8ac8661de395bdf50c41/docs/pom-example.xml
+     -->
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter-params</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- End: ChatUniTest dependencies -->
   </dependencies>
 
   <build>
@@ -295,13 +318,52 @@
         <artifactId>chatunitest-maven-plugin</artifactId>
         <version>2.1.1</version>
         <configuration>
-          <!-- Dummy token required by client validation -->
-          <apiKeys>local-token</apiKeys>
+          <apiKeys>hyper-secret-totally-legit-token</apiKeys>
+          <!-- Supported models are hardcoded in ChatUniTest. That list is outdated: the code-llama tag has
+           changed to codellama and the only models on that list that can fit on a modest 8GB of VRAM are either
+           codellama or codeqwen, we instead create an alias from code-llama to another local model, in our case,
+           we used gemma4:e4b. This left us with enough VRAM to barely squeeze in a context window large enough to get
+           unit test generation working -->
           <model>code-llama</model>
           <url>http://localhost:11434/v1/chat/completions</url>
-          <!-- Combines generated test methods into one test file per class -->
-          <merge>true</merge>
+          <!-- We disable multi-thread because our computer doesn't meet the criterias of a datacenter-class server -->
+          <enableMultithreading>false</enableMultithreading>
+          <!-- With the help of an LLM, we iterated on the following max tokens configuration to be able to get
+           ChatUniTest test generation working without encountering prompt or response cutoff while staying inside the
+           tight 14k token window -->
+          <maxPromptTokens>8500</maxPromptTokens>
+          <maxResponseTokens>4096</maxResponseTokens>
+          <minErrorTokens>1500</minErrorTokens>
+          <!-- 2 independent attempts per method, up to 3 rounds each; stopWhenSuccess=false allows both attempts to run and merge -->
+          <testNumber>2</testNumber>
+          <maxRounds>3</maxRounds>
+          <stopWhenSuccess>false</stopWhenSuccess>
+          <!-- Disables legacy JUnit 4 Suite generation -->
+          <merge>false</merge>
+          <!-- Output the generated tests under /src/test so they are recognized as tests -->
+          <testOutput>${project.basedir}/src/test/chatunitest-tests</testOutput>
         </configuration>
+      </plugin>
+      <!-- Plugin used to tell Maven that the directory /src/test/chatunitest-tests contains test sources. Without it,
+      the generated tests aren't picked up by maven -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+          <execution>
+            <id>add-chatunitest-sources</id>
+            <phase>generate-test-sources</phase>
+            <goals>
+              <goal>add-test-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>src/test/chatunitest-tests/tika-parent/tika-core</source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
