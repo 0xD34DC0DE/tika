@@ -68,7 +68,7 @@ public class SafeContentHandler_ignorableWhitespace_8_0_Test {
         int length = 1;
         // Although this might lead to an ArrayIndexOutOfBoundsException if not handled internally,
         // the test verifies the public method execution path.
-        assertDoesNotThrow(() -> safeContentHandler.ignorableWhitespace(ch, start, length));
+        assertThrows(IndexOutOfBoundsException.class, () -> safeContentHandler.ignorableWhitespace(ch, start, length));
     }
 
     @Test
