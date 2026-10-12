@@ -246,7 +246,7 @@ protected void handleException(SAXException exception) throws SAXException {
 
 Puisque dans ce test, `handler` est un mock de `ContentHandler`, la vérification de l'instance échoue et l'exception est
 relancée. Étant donné que ce comportement relève de `ContentHandlerDecorator`, nous avons enlevé le test
-`endDocument_shouldHandleExceptionWhenUnderlyingHandlerThrowsSAXException`, car l'oracle de test ne devrait pas 
+`endDocument_shouldHandleExceptionWhenUnderlyingHandlerThrowsSAXException`, car l'oracle de test ne devrait pas
 vérifier le comportement d'une classe autre que `SafeContentHandler`.
 
 ---
@@ -308,3 +308,27 @@ pour que le test vérifie correctement que l'exception est levée.
 
 Finalement, aucun caractère invalide n'est utilisé. Donc, la logique de filtrage de `SafeContentHandler` n'est jamais
 testée.
+
+## 2.4 Comparaison des tests générés par l'IA avec les tests existants
+
+En général, les tests générés par l'IA sont pour la plupart corrects et @augmentent la couverture de code. Cependant,
+certains tests sont redondants et d'autres ont des oracles incomplets ou incorrects.
+
+Comparativement aux tests existants, ceux générés par l'IA sont plus superficiel et démontrent une compréhension très
+en surface. Un bon example est le test `endDocument_shouldHandleExceptionWhenUnderlyingHandlerThrowsSAXException` où
+la logique de propagation d'exception est mal comprise. Cela peut être dû à la limitation de la fenêtre de contexte, qui
+aurait empêché l'IA d'avoir une vue complète de la classe.
+
+Une autre remarque est que les tests générés utilisent tous des conventions de nommage différentes de celles des
+tests existants. Les tests existants utilisent un style simplifié, tandis que les tests générés par l'IA utilisent un
+style plus verbeux et descriptif.
+
+Différentes méthodes de tests sont également utilisées :
+"Arrange, Act, Assert (AAA)", "Given, When, Then (GWT)" et "Setup, Execute, Verify (SEV)".
+Les tests existants n'utilisent pas vraiment de conventions de nommage et sont plus simples. Ils ne font pas usage de
+mocks et ne testent pas les exceptions. Cependant, les tests existants se concentrent sur la logique de filtrage des
+caractères invalides, ce qui est la responsabilité principale de la classe.
+
+Finalement, les classes de tests générées par l'IA ont des importations, des méthodes utilitaires et des classes
+internes inutilisées, ce qui alourdit le code et le rend moins lisible. De plus, le nom de certains tests ne correspond
+pas à ce qu'ils testent réellement.
