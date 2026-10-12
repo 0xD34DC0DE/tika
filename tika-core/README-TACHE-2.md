@@ -175,3 +175,136 @@ message et que l'appel au parent a été essayé. On y observe une vérification
 la propagation des erreurs.
 
 ---
+
+### `SafeContentHandler_endDocument_6_0_Test`
+
+- `endDocument_shouldCallSuperEndDocumentOnDelegate`: Vérifie que la méthode `endDocument` appelle correctement la
+  méthode `endDocument` de la classe parente.
+
+- `endDocument_shouldPropagateSAXExceptionFromDelegate`: Configure le mock pour lever `SAXException` et vérifie avec
+  `assertThrows(SAXException.class, ...)` que l'exception est propagée lors de l'appel à `endDocument`.
+
+#### **Critique**
+
+Ces deux tests sont simples et corrects. Le premier test valide l'appel de `endDocument` du parent et le second test
+valide correctement le contrat de propagation d'exception, contrairement à `SafeContentHandler_endElement_5_0_Test`.
+Les tests n'utilisent pas de réflexion inutile pour initialiser le mock. De plus, ils couvrent une méthode qui n'était
+pas testée par les tests existants de Tika.
+
+---
+
+### `SafeContentHandler_endDocument_6_1_Test`
+
+- `endDocument_shouldCallSuperEndDocumentWhenSuccessful`: Vérifie que la méthode `endDocument` appelle correctement la
+  méthode `endDocument` de la classe parente.
+
+- `endDocument_shouldHandleExceptionWhenUnderlyingHandlerThrowsSAXException`: Configure le mock pour lever une
+  `SAXException` et vérifie avec `assertDoesNotThrow(...)` que l'exception n'est pas propagée lors de l'appel à
+  `endDocument`.
+
+#### **Critique**
+
+Le premier test est identique au premier test de `SafeContentHandler_endDocument_6_0_Test`. Il est simple et correct.
+
+Le deuxième test est incorrect, car celui-ci vérifie que l'exception n'est pas propagée alors que la méthode
+`endDocument` est censée propager l'exception reçue. Dans les commentaires du code généré, on peut voir que l'IA
+explique que `ContentHandlerDecorator` gère l'exception sans la relancer. Ce raisonnement est partiellement correct,
+parce que l'implémentation de la méthode `endDocument` de `SafeContentHandler` utilise en effet un bloc de gestion
+d'exception qui ne relance pas l'exception :
+
+```java
+public class ContentHandlerDecorator extends DefaultHandler {
+
+//[...]
+
+    @Override
+    public void endDocument() throws SAXException {
+        try {
+            handler.endDocument();
+        } catch (SAXException e) {
+            handleException(e);
+        }
+    }
+
+//[...]
+
+}
+```
+
+Cependant, la méthode `handleException` de `ContentHandlerDecorator` vérifie si `handler` est une instance de
+`ContentHandlerDecorator` et relance l'exception si ce n'est pas le cas.
+
+```java
+protected void handleException(SAXException exception) throws SAXException {
+    if (handler instanceof ContentHandlerDecorator) {
+        ((ContentHandlerDecorator) handler).handleException(exception);
+    } else {
+        throw exception;
+    }
+}
+```
+
+Puisque dans ce test, `handler` est un mock de `ContentHandler`, la vérification de l'instance échoue et l'exception est
+relancée. Étant donné que ce comportement relève de `ContentHandlerDecorator`, nous avons enlevé le test
+`endDocument_shouldHandleExceptionWhenUnderlyingHandlerThrowsSAXException`, car l'oracle de test ne devrait pas 
+vérifier le comportement d'une classe autre que `SafeContentHandler`.
+
+---
+
+### `SafeContentHandler_characters_7_1_Test`
+
+- `characters_shouldProcessFullCharacterSegment_whenInputIsValid`: Vérifie que la méthode `characters` appelle
+  correctement la méthode `characters` de la classe parente avec les mêmes paramètres lorsque que tous les caractères
+  sont valides.
+
+- `characters_shouldProcessPartialCharacterSegment_whenStartIsNotZero`: Vérifie que la méthode `characters` effectue
+  correctement l'appel à la méthode parente tout en conservant les mêmes paramètres `inputChars`, `start` et `length`
+  lorsque `start` est différent de zéro.
+
+- `characters_shouldHandleZeroLengthInput_withoutThrowingException`: Vérifie que `characters` ne lance pas d'exception
+  lorsque la longueur donnée en paramètre est zéro pour une liste de caractères qui n'est pas vide.
+
+- `characters_shouldHandleFullArrayInput_whenStartIsZero`: Vérifie le même comportement que le premier test.
+
+#### **Critique**
+
+En général, ces tests sont corrects et augmentent la couverture. Les tests vérifient que
+les arguments passés à la méthode parente correspondent à ceux passés à la méthode `characters`.
+Cependant, `characters_shouldProcessFullCharacterSegment_whenInputIsValid` et
+`characters_shouldHandleFullArrayInput_whenStartIsZero` sont redondants, car ils testent le même élément de l'oracle.
+
+Ces tests ne couvrent pas entièrement la logique de métier principale de `SafeContentHandler`, puisque tous les
+caractères utilisés sont des caractères ASCII valides. Aucun caractère Unicode invalide n'est utilisé. La logique de
+filtrage n'est donc jamais exécutée et l'oracle vérifie seulement que les caractères sont passés tels quels à la méthode
+parente, sans tester le remplacement des caractères invalides.
+
+---
+
+### `SafeContentHandler_ignorableWhitespace_8_0_Test`
+
+- `testIgnorableWhitespace_fullLength`: Vérifie que l'appel à `ignorableWhitespace` avec une liste de caractères ne
+  lance pas d'exception.
+
+- `testIgnorableWhitespace_partialLength`: Vérifie le comportement avec une liste partielle.
+
+- `testIgnorableWhitespace_zeroLength`: Vérifie le comportement lorsque `length` est égal à zéro.
+
+- `testIgnorableWhitespace_startAtEnd`: Vérifie le comportement lorsque `start` est égal à la taille de la liste de
+  caractères.
+
+- `testIgnorableWhitespace_throwsSAXException`: Vérifie le même comportement que `testIgnorableWhitespace_fullLength`.
+
+#### **Critique**
+
+Les oracles de ces tests sont très faibles. Tous les tests utilisent `assertDoesNotThrow` et aucun test ne vérifie avec
+`verify(...)` que la méthode parente a été appelée. Les tests vérifient donc seulement que la méthode ne lance pas
+d'exception, sans valider son comportement. De plus, le nom du test `testIgnorableWhitespace_throwsSAXException` ne
+correspond pas à ce qu'il vérifie, puisqu'il s'attend à ce qu'aucune exception ne soit levée.
+
+Le test `testIgnorableWhitespace_startAtEnd` est erroné : l'indice de début `start` est plus grand que la longueur
+de la liste de caractères, cela résulte en un lancement de `IndexOutOfBoundsException` alors que le test vérifie
+qu'aucune exception n'est levée malgré que la levée d'exception soit attendue. Une correction manuelle a été apportée
+pour que le test vérifie correctement que l'exception est levée.
+
+Finalement, aucun caractère invalide n'est utilisé. Donc, la logique de filtrage de `SafeContentHandler` n'est jamais
+testée.
