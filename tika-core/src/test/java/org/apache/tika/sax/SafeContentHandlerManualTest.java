@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.AttributesImpl;
@@ -76,6 +77,8 @@ public class SafeContentHandlerManualTest {
         // Ligne 145
         assertFalse(safeHandler.checkInvalid(0xFFFD)); 
         assertTrue(safeHandler.checkInvalid(0xFFFE));  
+        assertTrue(safeHandler.checkInvalid(0xFFFF));
+        assertFalse(safeHandler.checkInvalid(0x10000));
 
         // Ligne 147
         assertFalse(safeHandler.checkInvalid(0x10FFFF)); 
@@ -84,10 +87,29 @@ public class SafeContentHandlerManualTest {
 
     @Test
     public void testStartElementAvecAttributInvalide() throws SAXException {
-        SafeContentHandler safeHandler = new SafeContentHandler(new DefaultHandler());
+        // L'espion capture les attributs modifiés qui sont envoyés au ContentHandler parent
+        List<AttributesImpl> attributsCaptures = new ArrayList<>();
+        DefaultHandler trackerHandler = new DefaultHandler() {
+            @Override
+            public void startElement(String uri, String localName, String qName, Attributes attributes) {
+                attributsCaptures.add(new AttributesImpl(attributes));
+            }
+        };
+        
+        SafeContentHandler safeHandler = new SafeContentHandler(trackerHandler);
         AttributesImpl atts = new AttributesImpl();
         
-        atts.addAttribute("", "test", "test", "CDATA", "valeur\u000Binvalide");
+        // On teste un attribut valide et un attribut invalide simultanément
+        atts.addAttribute("", "attr1", "attr1", "CDATA", "valeurValide");
+        atts.addAttribute("", "attr2", "attr2", "CDATA", "valeur\u000Binvalide");
+        
         safeHandler.startElement("", "test", "test", atts);
+        
+        // L'oracle de test : on s'assure que le filtre a fait son travail
+        assertEquals(1, attributsCaptures.size());
+        AttributesImpl resultAtts = attributsCaptures.get(0);
+        
+        assertEquals("valeurValide", resultAtts.getValue(0));
+        assertEquals("valeur\ufffdinvalide", resultAtts.getValue(1), "Le caractère invalide n'a pas été filtré correctement.");
     }
 }

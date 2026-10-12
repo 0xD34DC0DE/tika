@@ -332,3 +332,121 @@ caractères invalides, ce qui est la responsabilité principale de la classe.
 Finalement, les classes de tests générées par l'IA ont des importations, des méthodes utilitaires et des classes
 internes inutilisées, ce qui alourdit le code et le rend moins lisible. De plus, le nom de certains tests ne correspond
 pas à ce qu'ils testent réellement.
+
+## 3.1. Score de mutation initial (Baseline)
+
+Nous avons d'abord exécuté Pitest uniquement avec les tests originaux fournis par Apache Tika.
+
+
+
+- **Couverture de lignes :** 75 % (45/60)
+
+
+
+- **Score de mutation :** 58 % (32 mutants tués sur 55)
+
+
+
+- **Force des tests (Test strength) :** 82 %
+
+
+
+- **Mutants sans couverture (NO_COVERAGE) :** 16
+
+
+
+
+Les statistiques démontrent que malgré une couverture acceptable, plusieurs segments de la logique étaient toujours vulnérables, avec 16 mutants complètement ignorés par l'exécution.
+
+
+
+## 3.2. Impact des tests générés par l'IA
+
+Après l'intégration des tests générés par ChatUniTest, nous avons relancé l'analyse :
+
+
+
+- **Couverture de lignes :** 74 % (43/58)
+
+
+
+- **Score de mutation :** 61 % (35 mutants tués sur 57)
+
+
+
+- **Force des tests :** 90 %
+
+
+
+- **Mutants sans couverture :** 18
+
+**Mutants détectés par les tests générés (IA)** Les 3 mutants supplémentaires tués par ChatUniTest concernent principalement les appels de délégation à la classe parente.
+
+1. **Mutant : `removed call to org/apache/tika/sax/ContentHandlerDecorator::endDocument`**
+
+- **Pourquoi il a été détecté :** La suite de tests originale de Tika ne testait pas la méthode `endDocument`. Les tests générés par l'IA (ex: `SafeContentHandler_endDocument_6_0_Test`) ont introduit un mock de `ContentHandler` et utilisé `Mockito.verify()` pour s'assurer que la méthode `endDocument()` du parent est bel et bien appelée. Le mutant supprimant cet appel fait donc échouer le test.
+
+2. **Mutant : `removed call to org/apache/tika/sax/ContentHandlerDecorator::endElement`**
+
+- **Pourquoi il a été détecté :** L'IA a généré `SafeContentHandler_endElement_5_1_Test` qui vérifie explicitement avec `verify(...)` que les bons paramètres sont passés au parent lors de la fermeture d'un élément.
+
+3. **Mutant : `removed call to org/apache/tika/sax/ContentHandlerDecorator::startElement`**
+
+- **Pourquoi il a été détecté :** De la même manière, le test `SafeContentHandler_startElement_4_0_Test` vérifie la délégation de l'ouverture d'un élément avec des attributs valides, ce qui tue le mutant qui tente de supprimer cet appel.
+
+
+L'ajout des tests de l'IA a permis de tuer 3 mutants supplémentaires, augmentant légèrement le score de mutation à 61 %. Cependant, l'IA n'a pas réussi à réduire le nombre d'erreurs `NO_COVERAGE`. Comme mentionné précédemment, l'IA s'est contentée de valider le passage de caractères valides, échouant totalement à générer des caractères Unicode invalides pour déclencher la véritable logique de filtrage de la classe.
+
+
+## 3.3. Ajout de tests manuels ciblés et renforcement des oracles
+
+Nous avons créé la classe `SafeContentHandlerManualTest` afin d'intégrer des tests qui élimineraient les mutants survivants. On a pu utiliser les outils donné par Pitest afin de cibler les sections de `SafeContentHandler.java` auxquelles les mutants survivaients. On a donc pu s'attaquer aux angles morts laissés par les anciens tests.
+
+
+**Nom du test :** `testFiltreMutantsLignes86Et87`
+
+- **Intention du test :** Vérifier l'exactitude des limites de la boucle `while` (lignes 86 et 87) lors du filtrage d'un caractère invalide pour s'assurer que le programme n'écrit pas de caractères excédentaires ou ne déclenche pas d'erreurs d'index.
+
+- **Motivation des données :** L'utilisation du caractère invalide immédiat `\u000B` et d'une chaîne combinée `xab\u000B` force l'exécution directe des conditions `i > start` et du calcul `i - start`.
+
+- **Explication de l'oracle :** Un `DefaultHandler` espion intercepte les appels à `characters`. L'oracle vérifie avec `assertEquals` que la taille de la liste des longueurs écrites correspond exactement au comportement attendu, détectant ainsi les mutants modifiant les conditions (`i >= start`) ou les opérations mathématiques (`i + start`).
+
+- **Nom du test :** `testLimitesUnicodeIsInvalid`
+
+- **Intention du test :** Couvrir exhaustivement toutes les frontières conditionnelles (`else if`) de la méthode `isInvalid(int)` qui définit les plages de caractères XML valides.
+
+- **Motivation des données :** Les valeurs testées (`0xD7FF`, `0xD800`, `0xFFFD`, `0xFFFF`, `0x10000`, `0x10FFFF`, `0x110000`) correspondent aux limites exactes dictées par la spécification XML et codées dans la méthode.
+
+- **Explication de l'oracle :** En exposant la méthode protégée via une sous-classe (`TestableSafeContentHandler`), l'oracle utilise des `assertTrue` et `assertFalse` stricts sur les retours booléens. Cela permet d'identifier instantanément tout mutant de type "changed conditional boundary" (ex: `<` changé en `<=`).
+
+- **Nom du test :** `testStartElementAvecAttributInvalide`
+
+- **Intention du test :** Exécuter et valider la logique de remplacement des caractères invalides cachés à l'intérieur des valeurs d'attributs lors de l'ouverture d'un élément (`startElement`).
+
+- **Motivation des données :** L'injection de la chaîne `"valeur\u000Binvalide"` dans un objet `AttributesImpl` force le déclenchement de la condition interne `if (isInvalid(atts.getValue(i)))` qui était jusque-là marquée en `NO_COVERAGE`.
+
+- **Explication de l'oracle :** Un espion capture les attributs filtrés avant leur envoi au parent. L'oracle utilise `assertEquals("valeur\ufffdinvalide", ...)` pour garantir de manière absolue que le caractère invalide a été remplacé par le caractère de substitution Unicode `\ufffd`.
+
+
+
+
+## 3.4. Score de mutation final et conclusion
+
+Avec l'intégration et le raffinement de nos tests manuels, notre dernière exécution Pitest a donné les résultats suivants :
+
+
+
+- **Couverture de lignes :** 100 % (58/58)
+
+
+
+- **Score de mutation :** 100 % (57 mutants tués sur 57)
+
+- **Force des tests (Test strength) :** 100 %
+
+- **Mutants sans couverture :** 0
+
+
+**Bilan :**
+
+La combinaison des tests de l'IA et de nos tests manuels a permis de faire passer la couverture de lignes à 100 % et de tuer la totalité des 57 mutants générés. Le score de mutation a fait un bond exceptionnel, passant d'un score initial de 58 % (avec les tests de base de Tika) à un score parfait de 100 %.
