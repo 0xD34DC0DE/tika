@@ -74,7 +74,7 @@ grande (14k tokens) pour générer des tests fonctionnels.
 ChatUniTest est intégré au pipeline Maven du module `tika-core` à l'aide de l'ajout du plugin `chatunitest-maven-plugin`
 dans `tika-core/pom.xml`. Les dépendances de test utilisées par les prompts (Mockito, JUnit 5, etc.) ont aussi été
 ajoutées au `pom.xml`, en se basant sur le
-[pom d'exemple de ChatUniTest](https://github.com/ZJU-ACES-ISE/ChatUniTest/blob/06d164aed21ec4cea29b8ac8661de395bdf50c41/docs/pom-example.xml).
+[pom d'exemple de ChatUniTest](https://github.com/ZJU-ACES-ISE/ChatUniTest/blob/06d164aed21ec4cea29b8ac8661de395bdf50c41/docs/pom-example.xml)
 
 Le plugin `build-helper-maven-plugin` ajoute le répertoire des tests générés comme source de test, afin que Maven puisse
 détecter et exécuter les tests générés par ChatUniTest.
