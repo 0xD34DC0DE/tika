@@ -1,3 +1,5 @@
+> **Note :** Rapport Tâche 2 par Jaden Che Angelo Keenan-Mbemba et Émerick Poulin
+
 # 1. Sélection des classes à tester
 
 Nous avons utilisé les métriques de couverture générées par JaCoCo pour identifier les classes candidates selon les
