@@ -85,39 +85,20 @@ Commande utilisée pour générer les tests :
 
 ## 2.3. Résultats de la génération de tests
 
-Les tests générés à l'aide de ChatUniTest se trouvent dans le dossier :
-`tika-core/src/test/chatunitest-tests/tika-parent/tika-core/org/apache/tika/sax/`
+Les tests générés se trouvent dans `tika-core/src/test/chatunitest-tests/tika-parent/tika-core/org/apache/tika/sax/`.
+Nous avons généré 7 classes de tests, avec 2 tests par méthode de `SafeContentHandler` (pour observer si plusieurs tests
+par méthode améliorent la couverture et donner plus de chances d'obtenir un test fonctionnel), un maximum de 3 essais
+par test, `stopWhenSuccess=false` pour laisser l'IA raffiner, et `merge=false` parce que la fusion automatique
+produisait du code qui ne compilait pas.
 
-Après avoir corrigé les [problèmes de configuration](#21-problèmes-rencontrés-avec-chatunitest), nous avons pu générer 7
-classes de tests.
+Les 7 classes compilent sans intervention manuelle. Deux méthodes de tests ont nécessité une correction manuelle :
 
-Nous avons configuré ChatUniTest pour générer 2 tests par méthode de `SafeContentHandler` avec un maximum de 3 essais
-par test. Le choix de générer 2 tests par méthode a été fait pour observer si la couverture de code pouvait être
-améliorée en ayant plusieurs tests pour la même méthode et pour donner plus de chances à l'IA de réussir à générer des
-tests fonctionnels. Nous avons également configuré ChatUniTest pour continuer à itérer même après le succès d'un test,
-afin de donner à l'IA la possibilité de raffiner les tests générés. Finalement, la configuration de fusion des tests a
-été désactivée, car la fusion automatique engendrait des erreurs de compilation.
+- `SafeContentHandler_endDocument_6_1_Test` : `endDocument_shouldHandleExceptionWhenUnderlyingHandlerThrowsSAXException`
+avait un oracle incorrect. Nous l'avons donc retiré (voir 2.4).
+- `SafeContentHandler_ignorableWhitespace_8_0_Test` : `testIgnorableWhitespace_startAtEnd` s'attendait à ce qu'aucune
+exception ne soit levée. Nous l'avons corrigé pour qu'il vérifie le lancement de l'exception.
 
-**Nombre de tentatives de générations de tests** :
-En ne tenant pas compte des nombreux essais effectués pendant les modifications de la configuration de ChatUniTest pour
-réussir à générer des tests fonctionnels, le modèle IA (gemma4:e4b) a pris en moyenne de 3 essais et parfois seulement 2
-par génération de test pour produire un test fonctionnel. Dans les itérations ultérieures avant l'élargissement de la
-fenêtre de contexte, le modèle IA a pris jusqu'à 5 essais pour générer un test fonctionnel. Certaines classes de tests
-n'ont cependant pas été conservées, car elles ne compilaient pas ou ne s'exécutaient pas correctement. ChatUniTest les a
-donc rejetées.
-
-**Compilation et exécution sans intervention manuelle :** les 7 classes de tests générées ont réussi à compiler sans
-intervention manuelle. Cependant, 2 méthodes de tests ont nécessité des corrections manuelles, car ces tests échouaient.
-
-1. `SafeContentHandler_endDocument_6_1_Test` : le test
-   `endDocument_shouldHandleExceptionWhenUnderlyingHandlerThrowsSAXException` échouait parce que son oracle était
-   incorrect. Nous l'avons retiré (voir la critique plus bas).
-2. `SafeContentHandler_ignorableWhitespace_8_0_Test` : le test `testIgnorableWhitespace_startAtEnd` échouait parce
-   qu'il s'attendait à ce qu'aucune exception ne soit levée. Nous l'avons corrigé pour qu'il vérifie la levée de
-   l'exception.
-
-Nous avons aussi désactivé la fusion de classes de tests, car la fusion automatique des tests produisait du code qui ne
-compilait pas.
+Certaines classes de test ont été rejetées par ChatUniTest, car il y avait des erreurs de compilation.
 
 ## 2.4. Explication des tests générés
 
@@ -389,7 +370,6 @@ et `isInvalid(String)`. Parmi les mutants couverts, 6 survivent.
 
 ## 3.2. Impact des tests générés par l'IA
 
-
 Après l'intégration des tests générés par ChatUniTest, nous avons relancé l'analyse :
 
 - **Couverture de lignes :** 75 % (45/60)
@@ -510,6 +490,7 @@ tests.
 
 **Mutants tués (10) :** les mutants des lignes 142 à 147 de `isInvalid(int)` qui restaient après les tests
 originaux et les tests IA (2 `SURVIVED`, 8 `NO_COVERAGE`) :
+
 - lignes 142, 143 : *changed conditional boundary* (`SURVIVED`)
 - lignes 144, 145, 147 : *changed conditional boundary* (`NO_COVERAGE`)
 - lignes 144, 145, 147 : *negated conditional* (`NO_COVERAGE`)
@@ -531,6 +512,7 @@ originaux et les tests IA (2 `SURVIVED`, 8 `NO_COVERAGE`) :
 
 **Mutants tués (9) :** tous les mutants `NO_COVERAGE` de la branche de filtrage des attributs, plus deux
 mutants de `isInvalid(String)` qui ne peuvent être détectés qu'avec une valeur invalide :
+
 - ligne 115 (`isInvalid(String)`) : *negated conditional* (`SURVIVED`)
 - ligne 118 (`isInvalid(String)`) : *replaced boolean return with false*
 - lignes 173, 175 (`startElement`) : *changed conditional boundary*
@@ -547,7 +529,8 @@ mutants de `isInvalid(String)` qui ne peuvent être détectés qu'avec une valeu
   `0x0A` et `0x0D` sont les trois exceptions explicitement codées à la ligne 141. `0x20` (espace) est le premier
   caractère après la frontière `ch < 0x20`.
 
-- **Explication de l'oracle :** Selon la spécification XML 1.0, les seuls caractères valides en dessous de `0x20` sont `0x09`,
+- **Explication de l'oracle :** Selon la spécification XML 1.0, les seuls caractères valides en dessous de `0x20` sont
+  `0x09`,
   `0x0A` et `0x0D`. L'oracle utilise `assertTrue` pour `0x00` et `0x1F`, et `assertFalse` pour
   `0x09`, `0x0A`, `0x0D` et `0x20`, en passant par la même sous-classe `TestableSafeContentHandler`.
 
