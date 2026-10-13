@@ -86,6 +86,19 @@ public class SafeContentHandlerManualTest {
     }
 
     @Test
+    public void testCaracteresDeControleIsInvalid() {
+        TestableSafeContentHandler safeHandler = new TestableSafeContentHandler(new DefaultHandler());
+
+        // Lignes 140 et 141
+        assertTrue(safeHandler.checkInvalid(0x00));
+        assertTrue(safeHandler.checkInvalid(0x1F));
+        assertFalse(safeHandler.checkInvalid(0x09));
+        assertFalse(safeHandler.checkInvalid(0x0A));
+        assertFalse(safeHandler.checkInvalid(0x0D));
+        assertFalse(safeHandler.checkInvalid(0x20));
+    }
+
+    @Test
     public void testStartElementAvecAttributInvalide() throws SAXException {
         // L'espion capture les attributs modifiés qui sont envoyés au ContentHandler parent
         List<AttributesImpl> attributsCaptures = new ArrayList<>();

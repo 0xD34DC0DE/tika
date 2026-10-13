@@ -158,7 +158,7 @@
             </targetClasses>
             <!-- Glob pattern for the tests we want to target with PiTest -->
             <targetTests>
-                <param>org.apache.tika.sax.*Test</param>
+                <param>org.apache.tika.sax.SafeContentHandler*Test</param>
             </targetTests>
             <!-- Increase memory and enable dynamic agent loading because Java 21 needs it -->
             <jvmArgs>
